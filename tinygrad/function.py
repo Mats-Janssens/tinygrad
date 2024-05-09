@@ -23,6 +23,13 @@ class Cast(Function):
 
   def backward(self, grad_output:LazyBuffer) -> LazyBuffer: return grad_output.cast(self.input_dtype, self.bitcast)
 
+class BitCast(Function):
+  def forward(self, x:LazyBuffer, dtype:DType) -> LazyBuffer:
+    self.input_dtype = x.dtype
+    return x.bitcast(dtype)
+
+  def backward(self, grad_output:LazyBuffer) -> LazyBuffer: return grad_output.bitcast(self.input_dtype)
+
 # ************* unary ops *************
 
 class Neg(Function):
