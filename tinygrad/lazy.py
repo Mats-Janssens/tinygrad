@@ -96,14 +96,18 @@ class LazyBuffer:
     if self.device.startswith("DISK") and not bitcast: raise RuntimeError("attempted to cast disk buffer (bitcast only)")
     if self.is_unrealized_unmasked_const() and not bitcast:
       return create_lazybuffer(self.device, self.st, dtype, LoadOps.CONST, dtypes.as_const(self.base.arg, dtype))
-    new_shape = self.shape
-    if bitcast and self.dtype.itemsize != dtype.itemsize:
+    if bitcast:
+      return self.bitcast(self, dtype:DType)
+
+  def bitcast(self, dtype:DType):
+    if self.dtype == dtype: return self
+    if self.dtype.itemsize != dtype.itemsize:
       if not self.device.startswith("DISK"): raise RuntimeError("shape changing bitcast only supported on DISK right now")
       if not all_int(new_shape): raise RuntimeError("shape changing bitcast with symbolic shape isn't supported yet")
       # https://pytorch.org/docs/stable/generated/torch.Tensor.view.html
       if not (new_shape[-1]*self.dtype.itemsize) % dtype.itemsize == 0: raise RuntimeError("unsupported size in bitcast")
       new_shape = new_shape[:-1] + ((new_shape[-1]*self.dtype.itemsize) // dtype.itemsize,)
-    return create_lazybuffer(self.device, ShapeTracker.from_shape(new_shape), dtype, UnaryOps.CAST, (dtype, bitcast), (self,))
+    return create_lazybuffer(self.device, ShapeTracker.from_shape(new_shape), dtype, UnaryOps.CAST, (dtype, True), (self,))
 
   def is_unrealized_const(self): return self.base.realized is None and self.base.op is LoadOps.CONST and not isinstance(self.base.arg, Variable)
   def is_unrealized_unmasked_const(self): return self.is_unrealized_const() and all(v.mask is None for v in self.st.views)
